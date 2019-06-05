@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/get_w"
+        android:title="获取壁纸" />
+    <item
+        android:id="@+id/choose_img"
+        android:title="图库选取" />
+
+
+    <item android:title="更多功能">
+
+        <menu>
+
+            <item android:title="帮助"
+                android:id="@+id/menu_help"/>
+            <item
+                android:id="@+id/xg"
+                android:title="相关" />
+            <item android:title="关于"
+                android:id="@+id/menu_about"/>
+        </menu>
+
+    </item>
+
+
+</menu>
