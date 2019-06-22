@@ -3,12 +3,14 @@ package com.dabai.gaussblurredwallpaper;
 import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.annotation.TargetApi;
+import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.WallpaperManager;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -27,6 +29,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.CardView;
 import android.util.DisplayMetrics;
@@ -37,12 +40,17 @@ import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
+import com.qingmei2.rximagepicker.core.RxImagePicker;
+import com.wildma.pictureselector.PictureSelector;
+
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
+import io.reactivex.functions.Consumer;
 import jp.wasabeef.blurry.Blurry;
 
 public class MainActivity extends AppCompatActivity {
@@ -250,9 +258,12 @@ public class MainActivity extends AppCompatActivity {
 
                 break;
             case R.id.choose_img:
-                Intent intent = new Intent("android.intent.action.GET_CONTENT");
-                intent.setType("image/*");
-                startActivityForResult(intent, REQUEST_SYSTEM_PIC);//打开系统相册
+
+
+                PictureSelector
+                        .create(MainActivity.this, PictureSelector.SELECT_REQUEST_CODE)
+                        .selectPicture(true, 1080, 2280, 9, 18);
+
                 break;
             case R.id.xg:
                 startActivity(new Intent(this, WallpaperActivity.class));
@@ -269,10 +280,42 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void toast(Object o) {
-        Toast.makeText(this, "" + o, Toast.LENGTH_SHORT).show();
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == PictureSelector.SELECT_REQUEST_CODE) {
+            if (data != null) {
+                String picturePath = data.getStringExtra(PictureSelector.PICTURE_PATH);
+                Bitmap bitmap = getLoacalBitmap(picturePath); //从本地取图片(在cdcard中获取)  //
+
+
+                iv.setImageBitmap(bitmap);
+                tmp_bm = ((BitmapDrawable) ((ImageView) iv).getDrawable()).getBitmap();
+                new File("/sdcard/PictureSelector.temp.jpg").delete();
+
+            }
+        }
+
     }
 
+    /**
+     * 加载本地图片
+     *
+     * @param url
+     * @return
+     */
+    public static Bitmap getLoacalBitmap(String url) {
+        try {
+            FileInputStream fis = new FileInputStream(url);
+            return BitmapFactory.decodeStream(fis);  ///把流转化为Bitmap图片
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
     /**
      * drawable转bitmap
@@ -315,161 +358,42 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_SYSTEM_PIC && resultCode == RESULT_OK && null != data) {
-            if (Build.VERSION.SDK_INT >= 19) {
-                handleImageOnKitkat(data);
-            } else {
-                handleImageBeforeKitkat(data);
-            }
-        }
-
-        if (requestCode == CROP_PICTURE && resultCode == RESULT_OK && null != data) {
-
-            try {
-                Bitmap headShot = BitmapFactory.decodeStream(getContentResolver().openInputStream(cropImageUri));
-                iv.setImageBitmap(headShot);
-                tmp_bm = ((BitmapDrawable) ((ImageView) iv).getDrawable()).getBitmap();
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-
-        }
-
-    }
-
-    @TargetApi(19)
-    private void handleImageOnKitkat(Intent data) {
-        String imagePath = null;
-        Uri uri = data.getData();
-        if (DocumentsContract.isDocumentUri(this, uri)) {
-            //如果是document类型的uri，则通过document id处理
-            String docId = DocumentsContract.getDocumentId(uri);
-            if ("com.android.providers.media.documents".equals(uri.getAuthority())) {
-                String id = docId.split(":")[1];
-                String selection = MediaStore.Images.Media._ID + "=" + id;
-                imagePath = getImagePath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, selection);
-            } else if ("com.android.providers.downloads.documents".equals(uri.getAuthority())) {
-                Uri contentUri = ContentUris.withAppendedId(Uri.parse("content:" +
-                        "//downloads/public_downloads"), Long.valueOf(docId));
-                imagePath = getImagePath(contentUri, null);
-            }
-        } else if ("content".equalsIgnoreCase(uri.getScheme())) {
-            //如果是content类型的uri，则使用普通方式处理
-            imagePath = getImagePath(uri, null);
-        } else if ("file".equalsIgnoreCase(uri.getScheme())) {
-            //如果是File类型的uri，直接获取图片路径即可
-            imagePath = uri.getPath();
-        }
-
-        //displayImage(imagePath);//根据图片路径显示图片
-        startPhotoZoom(uri);
-
-
-    }
-
-    private void handleImageBeforeKitkat(Intent data) {
-        Uri uri = data.getData();
-        String imagePath = getImagePath(uri, null);
-
-        //displayImage(imagePath);
-        startPhotoZoom(uri);
-
-
-    }
-
-    private String getImagePath(Uri uri, String selection) {
-        String path = null;
-        //通过uri和selection来获取真实的图片路径
-        Cursor cursor = getContentResolver().query(uri, null, selection, null, null);
-        if (cursor != null) {
-            if (cursor.moveToFirst()) {
-                path = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA));
-            }
-            cursor.close();
-        }
-        return path;
-    }
-
-    private void displayImage(String imagePath) {
-        if (imagePath != null) {
-
-            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
-            iv.setImageBitmap(bitmap);
-
-        } else {
-            Toast.makeText(this, "failed to get image", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-
-    public void startPhotoZoom(Uri uri) {
-
-
-        File CropPhoto = new File(getExternalCacheDir(), "crop_image.jpg");
-        try {
-            if (CropPhoto.exists()) {
-                CropPhoto.delete();
-            }
-            CropPhoto.createNewFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        cropImageUri = Uri.fromFile(CropPhoto);
-        Intent intent = new Intent("com.android.camera.action.CROP");
-        intent.setDataAndType(uri, "image/*");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); //添加这一句表示对目标应用临时授权该Uri所代表的文件
-        }
-        // 下面这个crop=true是设置在开启的Intent中设置显示的VIEW可裁剪
-        intent.putExtra("crop", "true");
-        intent.putExtra("scale", true);
-
-        intent.putExtra("aspectX", 9);
-        intent.putExtra("aspectY", 18);
-
-        intent.putExtra("outputX", getImageWidthHeight(CropPhoto.getAbsolutePath())[0]);
-        intent.putExtra("outputY", getImageWidthHeight(CropPhoto.getAbsolutePath())[1]);
-
-        intent.putExtra("return-data", false);
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, cropImageUri);
-        intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
-        intent.putExtra("noFaceDetection", true); // no face detection
-        startActivityForResult(intent, CROP_PICTURE);
-    }
-
-
-    public static int[] getImageWidthHeight(String path) {
-        BitmapFactory.Options options = new BitmapFactory.Options();
-
-        /**
-         * 最关键在此，把options.inJustDecodeBounds = true;
-         * 这里再decodeFile()，返回的bitmap为空，但此时调用options.outHeight时，已经包含了图片的高了
-         */
-        options.inJustDecodeBounds = true;
-        Bitmap bitmap = BitmapFactory.decodeFile(path, options); // 此时返回的bitmap为null
-        /**
-         *options.outHeight为原始图片的高
-         */
-        return new int[]{options.outWidth, options.outHeight};
-    }
-
-
     @TargetApi(Build.VERSION_CODES.KITKAT)
     public void setWap(View view) {
-        try {
-            //设置壁纸
 
-            wallpaperManager.setBitmap(getBitmapByView(iv));
 
-            sendNotification("2", "设置壁纸提示", "提示", "设置壁纸成功");
+        new AlertDialog.Builder(this)
+                .setTitle("提示")
+                .setMessage("确定要设置为壁纸嘛?")
+                .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
 
-        } catch (Exception e) {
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
 
-            sendNotification("2", "设置壁纸提示", "提示", "程序异常" + e.getMessage());
-        }
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
+                                            //设置壁纸
+                                            wallpaperManager.setBitmap(getBitmapByView(iv));
+                                            Toast.makeText(context, "设置壁纸成功", Toast.LENGTH_SHORT).show();
+
+                                        } catch (Exception e) {
+                                            Toast.makeText(context, "程序异常", Toast.LENGTH_SHORT).show();
+
+                                        }
+                                    }
+                                });
+
+                            }
+                        }).start();
+
+                    }
+                }).show();
+
     }
 
 
@@ -487,25 +411,34 @@ public class MainActivity extends AppCompatActivity {
     public void save_image(View view) {
         //保存图片
 
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Bitmap bitmap = getBitmapByView(iv);//iv是View
-                int ran = new Random().nextInt(1000);
-                savePhotoToSDCard(bitmap, "/sdcard/高斯模糊处理过的图片", "GaussianBlur_" + ran);
-                file = new File("/sdcard/高斯模糊处理过的图片/GaussianBlur_" + ran + ".png");
-                sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(file)));
-
-                runOnUiThread(new Runnable() {
+        new AlertDialog.Builder(this)
+                .setTitle("提示")
+                .setMessage("确定要保存嘛?")
+                .setPositiveButton("确定", new DialogInterface.OnClickListener() {
                     @Override
-                    public void run() {
-                        sendNotification("1", "保存壁纸通知", "提示", "壁纸保存成功 " + file.getAbsolutePath());
-                    }
-                });
+                    public void onClick(DialogInterface dialog, int which) {
 
-            }
-        }).start();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Bitmap bitmap = getBitmapByView(iv);//iv是View
+                                int ran = new Random().nextInt(1000);
+                                savePhotoToSDCard(bitmap, "/sdcard/高斯模糊处理过的图片", "GaussianBlur_" + ran);
+                                file = new File("/sdcard/高斯模糊处理过的图片/GaussianBlur_" + ran + ".png");
+                                sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(file)));
+
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Toast.makeText(context, "保存壁纸成功", Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+
+                            }
+                        }).start();
+
+                    }
+                }).show();
 
     }
 
@@ -516,32 +449,6 @@ public class MainActivity extends AppCompatActivity {
         i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         i.addCategory(Intent.CATEGORY_HOME);
         startActivity(i);
-
-    }
-
-    @TargetApi(Build.VERSION_CODES.O)
-    public void sendNotification(String channelID, String channelName, String title, String text) {
-
-        NotificationChannel channel = new NotificationChannel(channelID, channelName, NotificationManager.IMPORTANCE_HIGH);
-
-        manager.createNotificationChannel(channel);
-
-        Notification.Builder builder = new Notification.Builder(context);
-        builder.setSmallIcon(R.mipmap.ic_launcher);
-        builder.setContentTitle(title);
-        builder.setContentText(text);
-        builder.setColor(Color.parseColor("#E91E63"));
-        builder.setWhen(System.currentTimeMillis());//设置创建时间
-        builder.setPriority(Notification.PRIORITY_MAX);
-
-        //创建通知时指定channelID
-        builder.setChannelId(channelID);
-        Notification notification = builder.build();
-
-        notification.defaults = Notification.DEFAULT_VIBRATE;
-
-        manager.notify(noi, notification);
-        noi++;
 
     }
 

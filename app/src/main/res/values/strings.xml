@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Blur壁纸</string>
+
+    <string name="other">开源地址:\nhttps://github.com/dabai2017/GaussianBlurTool.git\n\n使用开源库:
+        \ncom.github.wildma:PictureSelector:1.1.1
+        \ncom.github.qingmei2:rximagepicker:0.2.0
+        \ncom.github.qingmei2:rximagepicker_support:0.2.0
+        \njp.wasabeef:blurry:2.1.1</string>
+
 </resources>

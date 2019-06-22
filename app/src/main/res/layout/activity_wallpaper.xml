@@ -12,33 +12,15 @@
         android:orientation="vertical"
 >
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="视频壁纸"
-            android:layout_margin="10dp"/>
 
-        <Button
-            android:id="@+id/button"
-            style="@style/Widget.AppCompat.Button.Colored"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="选择视频"
-            android:layout_marginLeft="10dp"/>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="10dp"
-            android:text="开源相关" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:text="开源地址:\nhttps://github.com/dabai2017/GaussianBlurTool.git\n使用开源库:\njp.wasabeef:blurry:2.1.1"
+            android:layout_marginTop="30dp"
             android:autoLink="all"
-            android:textColorLink="@color/colorAccent"
-            />
+            android:text="@string/other"
+            android:textColorLink="@color/colorAccent" />
     </LinearLayout>
 </android.support.constraint.ConstraintLayout>
